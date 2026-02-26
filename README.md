@@ -1,6 +1,3 @@
-# pathway-app-route-management
-
-Frontend dashboard (Vite + React + Tailwind).
 # 🌍 EcoStream Dispatch
 
 **AI-Led Climate Action for Indian Logistics | Built for Hack For Green Bharat 2026**
