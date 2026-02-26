@@ -58,6 +58,20 @@ The frontend features a dark-mode command center providing live fleet telemetry,
 git clone [https://github.com/yourusername/ecostream-dispatch.git](https://github.com/yourusername/ecostream-dispatch.git)
 cd ecostream-dispatch
 
+## Structure
+
+```text
+src/
+	components/        # reusable UI pieces (modals, etc.)
+	data/              # mock/demo data + helpers
+	hooks/             # custom React hooks
+	layout/            # app shell / layout chrome
+	pages/             # route-level screens
+	routes/            # router composition / guards
+	App.jsx            # app state (auth) + route wiring
+	main.jsx           # React entrypoint
+```
+
 ## Run
 
 ```bash
