@@ -44,7 +44,7 @@ By utilizing **Pathway's real-time streaming engine**, our vector index lives *n
 
 ## 📸 System Architecture & UI
 
-![EcoStream Command Center] <img width="1600" height="805" alt="image" src="https://github.com/user-attachments/assets/74fcc217-a5cd-448c-815a-47e3cf634d75" />
+<img width="1600" height="805" alt="image" src="https://github.com/user-attachments/assets/74fcc217-a5cd-448c-815a-47e3cf634d75" />
 
 
 The frontend features a dark-mode command center providing live fleet telemetry, real-time geospatial anomaly detection, and a dedicated LLM Diagnostics terminal for RAG-powered repair protocols.
