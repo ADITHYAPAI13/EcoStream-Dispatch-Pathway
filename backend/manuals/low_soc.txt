@@ -1,0 +1,1 @@
+EcoStream Dispatch – Service Manual Excerpt: Low State Of Charge (SOC)\n\nSymptoms\n- SOC below 10%\n- Voltage sag on acceleration\n\nImmediate actions\n1) Reduce speed and avoid steep grades\n2) Disable non-essential auxiliary loads\n3) Navigate to the nearest charging hub\n\nNotes\n- Prolonged operation below 5% SOC can trigger protective shutdown\n

@@ -1,14 +1,25 @@
 import React from 'react';
 import { MapPin, Plane, Truck, Zap, ChevronRight } from 'lucide-react';
 import { initialFleetData } from '../data/fleet.js';
+import { useLiveBackend } from '../hooks/useLiveBackend.js';
 
 function typeIcon(type) {
   return type === 'Air' ? Plane : Truck;
 }
 
 export default function FleetPage() {
-  const [fleet] = React.useState(() => initialFleetData);
+  const { fleet: liveFleet, loading, error, lastUpdatedAt } = useLiveBackend({ intervalMs: 1000 });
+  const fleet = liveFleet.length ? liveFleet : initialFleetData;
+
   const [selectedId, setSelectedId] = React.useState(() => fleet[0]?.id ?? null);
+
+  React.useEffect(() => {
+    if (!fleet.length) return;
+    setSelectedId((prev) => {
+      if (!prev) return fleet[0].id;
+      return fleet.some((v) => v.id === prev) ? prev : fleet[0].id;
+    });
+  }, [fleet]);
 
   const selected = fleet.find((v) => v.id === selectedId) ?? null;
 
@@ -18,7 +29,17 @@ export default function FleetPage() {
         <div className="flex items-center justify-between border-b border-slate-800/70 px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-50">Fleet</h2>
-            <p className="text-sm text-slate-400">{fleet.length} units</p>
+            <p className="text-sm text-slate-400">
+              {fleet.length} units
+              {liveFleet.length ? (
+                <span className="ml-2 text-xs text-emerald-200/90">Live</span>
+              ) : (
+                <span className="ml-2 text-xs text-slate-400">Mock</span>
+              )}
+            </p>
+          </div>
+          <div className="text-xs text-slate-400">
+            {loading ? 'Connecting…' : lastUpdatedAt ? `Updated ${lastUpdatedAt.toLocaleTimeString()}` : null}
           </div>
         </div>
 
@@ -124,7 +145,11 @@ export default function FleetPage() {
             <div className="rounded-2xl ring-1 ring-slate-800 bg-slate-950/40 p-4">
               <div className="text-xs text-slate-400">Notes</div>
               <p className="mt-1 text-sm text-slate-200 leading-relaxed">
-                This is mock fleet data. Next step is wiring live streams (Pathway) and persisting unit state.
+                {error
+                  ? 'Backend not reachable. Showing fallback demo data.'
+                  : liveFleet.length
+                    ? 'Live telemetry via Pathway streaming connector + windowed transforms.'
+                    : 'Waiting for backend telemetry. Showing demo data until the first events arrive.'}
               </p>
             </div>
           </div>

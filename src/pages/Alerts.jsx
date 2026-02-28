@@ -2,6 +2,8 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, FileSearch, ChevronRight, Sparkles } from 'lucide-react';
 import { initialFleetData, getAnomalyAlerts } from '../data/fleet.js';
+import { postDiagnose } from '../api/ecostream.js';
+import { useLiveBackend } from '../hooks/useLiveBackend.js';
 
 function useQuery() {
   const location = useLocation();
@@ -12,8 +14,12 @@ export default function AlertsPage() {
   const navigate = useNavigate();
   const query = useQuery();
 
-  const [fleet] = React.useState(() => initialFleetData);
-  const alerts = React.useMemo(() => getAnomalyAlerts(fleet), [fleet]);
+  const { fleet: liveFleet, alerts: liveAlerts, loading, error } = useLiveBackend({ intervalMs: 1000 });
+  const fleet = liveFleet.length ? liveFleet : initialFleetData;
+  const alerts = React.useMemo(() => {
+    if (liveAlerts.length) return liveAlerts;
+    return getAnomalyAlerts(fleet);
+  }, [fleet, liveAlerts]);
 
   const initialUnit = query.get('unit');
   const [selectedUnitId, setSelectedUnitId] = React.useState(() => initialUnit ?? alerts[0]?.unitId ?? null);
@@ -26,34 +32,57 @@ export default function AlertsPage() {
   }, [initialUnit]);
 
   const selectedVehicle = fleet.find((v) => v.id === selectedUnitId) ?? null;
+  const selectedAlert = alerts.find((a) => a.unitId === selectedUnitId) ?? null;
+
+  React.useEffect(() => {
+    if (selectedUnitId) return;
+    if (alerts.length) setSelectedUnitId(alerts[0].unitId);
+  }, [alerts, selectedUnitId]);
 
   async function runDiagnostic() {
     if (!selectedVehicle) return;
     setBusy(true);
     setDiagnostic('');
 
-    // Simulated “RAG” response: deterministic and instant, but presented as a workflow.
-    await new Promise((r) => setTimeout(r, 650));
-    setDiagnostic(
-      [
+    try {
+      const question = selectedAlert?.summary
+        ? `Diagnose this alert: ${selectedAlert.summary}`
+        : `Diagnose this telemetry: ${selectedVehicle.telemetry}`;
+
+      const resp = await postDiagnose(selectedVehicle.id, question);
+
+      const header = [
         `UNIT: ${selectedVehicle.id} (${selectedVehicle.name})`,
         `LOCATION: ${selectedVehicle.location}`,
         `SIGNAL: ${selectedVehicle.telemetry}`,
+        `MODE: ${resp?.mode || 'unknown'}`,
         '',
-        'LIKELY CAUSES:',
-        '- Cooling system stress / restricted airflow',
-        '- Load spikes during grade/traffic',
-        '- Sensor drift (verify with secondary probe)',
-        '',
-        'RECOMMENDED ACTIONS (0-15 MIN):',
-        '- Reduce load; keep airflow; avoid full stop unless necessary',
-        '- Reroute to nearest heavy commercial service',
-        '- Start DPF/thermal inspection checklist',
-        '',
-        'SOURCE: Mock Pathway Doc Store (demo)',
-      ].join('\n')
-    );
-    setBusy(false);
+      ];
+
+      const steps = Array.isArray(resp?.steps) ? resp.steps : [];
+      const stepsBlock = steps.length
+        ? ['RECOMMENDED ACTIONS:', ...steps.map((s) => `- ${s}`), '']
+        : [];
+
+      const retrieved = resp?.retrieve?.response;
+      const retrievedBlock = retrieved
+        ? ['RETRIEVED SNIPPETS (raw):', JSON.stringify(retrieved, null, 2), '']
+        : [];
+
+      setDiagnostic([...header, ...stepsBlock, ...retrievedBlock].join('\n'));
+    } catch (e) {
+      setDiagnostic(
+        [
+          'Backend diagnose failed.',
+          error ? 'Backend not reachable (showing demo alerts).' : '',
+          'Tip: start backend (8780) and docstore (8765) for retrieval fallback.',
+        ]
+          .filter(Boolean)
+          .join('\n')
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -62,7 +91,15 @@ export default function AlertsPage() {
         <div className="flex items-center justify-between border-b border-slate-800/70 px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-50">Alert queue</h2>
-            <p className="text-sm text-slate-400">{alerts.length} active</p>
+            <p className="text-sm text-slate-400">
+              {alerts.length} active
+              {liveAlerts.length ? (
+                <span className="ml-2 text-xs text-emerald-200/90">Live</span>
+              ) : (
+                <span className="ml-2 text-xs text-slate-400">Mock</span>
+              )}
+              {loading ? <span className="ml-2 text-xs text-slate-400">Connecting…</span> : null}
+            </p>
           </div>
         </div>
 

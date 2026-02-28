@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 
 import { initialFleetData } from '../data/fleet.js';
+import { postDiagnose } from '../api/ecostream.js';
+import { useLiveBackend } from '../hooks/useLiveBackend.js';
 
 function typeIcon(type) {
   return type === 'Air' ? Plane : Truck;
@@ -22,11 +24,23 @@ function typeIcon(type) {
 export default function DashboardPage() {
   const navigate = useNavigate();
 
-  const [fleetData] = React.useState(() => initialFleetData);
+  const { fleet: liveFleet, alerts: liveAlerts, error: liveError } = useLiveBackend({ intervalMs: 1000 });
+  const fleetData = liveFleet.length ? liveFleet : initialFleetData;
   const [selectedId, setSelectedId] = React.useState(null);
   const selected = fleetData.find((v) => v.id === selectedId) ?? null;
 
-  const alertCount = React.useMemo(() => fleetData.filter((v) => v.anomaly).length, [fleetData]);
+  React.useEffect(() => {
+    if (!fleetData.length) return;
+    setSelectedId((prev) => {
+      if (!prev) return fleetData[0].id;
+      return fleetData.some((v) => v.id === prev) ? prev : fleetData[0].id;
+    });
+  }, [fleetData]);
+
+  const alertCount = React.useMemo(() => {
+    if (liveAlerts.length) return liveAlerts.length;
+    return fleetData.filter((v) => v.anomaly).length;
+  }, [fleetData, liveAlerts]);
 
   const [messages, setMessages] = React.useState(() => [
     {
@@ -49,19 +63,66 @@ export default function DashboardPage() {
   ]);
   const [query, setQuery] = React.useState('');
 
-  function pushUserQuery() {
+  async function pushUserQuery() {
     const trimmed = query.trim();
     if (!trimmed) return;
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', text: trimmed, tone: 'user' },
-      {
-        role: 'system',
-        text: `ACK: queued doc search for "${trimmed}" (demo).`,
-        tone: 'system',
-      },
-    ]);
+
+    const targetUnitId = selected?.id || fleetData[0]?.id;
+
+    setMessages((prev) => [...prev, { role: 'user', text: trimmed, tone: 'user' }]);
     setQuery('');
+
+    if (!targetUnitId) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'system',
+          text: 'No units available yet. Start the backend to stream telemetry.',
+          tone: 'system',
+        },
+      ]);
+      return;
+    }
+
+    try {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'system',
+          text: `Searching manuals for Unit ${targetUnitId}…`,
+          tone: 'system',
+        },
+      ]);
+
+      const resp = await postDiagnose(targetUnitId, trimmed);
+      const steps = Array.isArray(resp?.steps) ? resp.steps : [];
+      const retrieve = resp?.retrieve?.response;
+      const retrieveText = retrieve ? JSON.stringify(retrieve, null, 2) : '';
+
+      const answer =
+        steps.length
+          ? `${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}${retrieveText ? `\n\nRetrieved:\n${retrieveText}` : ''}`
+          : `Response:\n${JSON.stringify(resp, null, 2)}`;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'recommendation',
+          text: answer,
+          tone: 'recommendation',
+          source: resp?.mode === 'docstore_fallback' ? 'Pathway DocumentStore (fallback)' : 'Pathway RAG service',
+        },
+      ]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'alert',
+          text: `Backend diagnose failed. ${liveError ? 'Backend not reachable.' : ''}`,
+          tone: 'alert',
+        },
+      ]);
+    }
   }
 
   return (
@@ -198,11 +259,14 @@ export default function DashboardPage() {
                   <AlertTriangle size={18} /> Critical anomaly detected
                 </div>
                 <p className="mt-1 text-sm text-rose-100/90">
-                  Unit FLT-002 exceeds thermal threshold. Start the diagnostic workflow to generate recommended actions.
+                  A unit exceeds thermal threshold. Start the diagnostic workflow to generate recommended actions.
                 </p>
                 <button
                   className="mt-3 w-full rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2"
-                  onClick={() => navigate('/alerts?unit=FLT-002')}
+                  onClick={() => {
+                    const unit = liveAlerts[0]?.unitId || fleetData.find((v) => v.anomaly)?.id || fleetData[0]?.id;
+                    navigate(unit ? `/alerts?unit=${encodeURIComponent(unit)}` : '/alerts');
+                  }}
                 >
                   Open diagnostics
                 </button>

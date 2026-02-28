@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecostream-backend"
+version = "0.1.0"
+description = "EcoStream Dispatch backend powered by Pathway (streaming + RAG)."
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "pathway[xpack-llm]==0.29.1",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "pydantic>=2.6",
+  # Required by Pathway's xpacks.llm.parsers import chain even when using Utf8Parser.
+  "pdf2image>=1.17.0",
+  "unstructured>=0.12.0",
+]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.6"]
+
+# NOTE: We intentionally do NOT enable `pathway[xpack-llm-docs]` by default.
+# It pulls in a very large dependency set (OCR, docling, torch, etc.).
+# If you want full PDF/Office parsing via Pathway's docs stack, you can add it back
+# locally by installing:
+#   pip install -U "pathway[xpack-llm-docs]==0.29.1"
+
+[tool.uvicorn]
+# convenience only; use CLI in README
+
+[tool.ruff]
+line-length = 100
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["manuals*"]

@@ -4,3 +4,14 @@ node_modules
 .DS_Store
 .env
 .env.*
+
+# Python (backend/)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+backend/.venv/
+backend/.pathway_cache/
+*.egg-info/
