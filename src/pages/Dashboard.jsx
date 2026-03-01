@@ -29,13 +29,8 @@ export default function DashboardPage() {
   const [selectedId, setSelectedId] = React.useState(null);
   const selected = fleetData.find((v) => v.id === selectedId) ?? null;
 
-  React.useEffect(() => {
-    if (!fleetData.length) return;
-    setSelectedId((prev) => {
-      if (!prev) return fleetData[0].id;
-      return fleetData.some((v) => v.id === prev) ? prev : fleetData[0].id;
-    });
-  }, [fleetData]);
+  // Intentionally do NOT auto-select a unit on load.
+  // The unit detail modal should open only when a user clicks a unit.
 
   const alertCount = React.useMemo(() => {
     if (liveAlerts.length) return liveAlerts.length;

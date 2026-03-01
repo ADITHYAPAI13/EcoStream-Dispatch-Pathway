@@ -1,6 +1,8 @@
 import React from 'react';
 import { Info, Github, SlidersHorizontal } from 'lucide-react';
 
+const PROJECT_REPO_URL = 'https://github.com/ADITHYAPAI13/EcoStream-Dispatch-Pathway';
+
 export default function SettingsPage() {
   const [compactMode, setCompactMode] = React.useState(false);
 
@@ -64,13 +66,13 @@ export default function SettingsPage() {
           </div>
 
           <a
-            href="https://github.com/"
+            href={PROJECT_REPO_URL}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-xl bg-slate-950/40 hover:bg-slate-950/60 ring-1 ring-slate-800 px-3 py-2 text-sm font-semibold text-slate-200"
           >
             <Github size={16} className="text-slate-400" />
-            Project link
+            Project repo
           </a>
         </div>
       </aside>

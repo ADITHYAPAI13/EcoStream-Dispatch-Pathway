@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { X, Lock, Mail } from 'lucide-react';
 
+import { AuthError, registerLocalAccount, signInLocalAccount } from '../services/localAuth.js';
+
 export default function AuthModal({ open, mode, onClose, onSignIn }) {
   const title = useMemo(() => (mode === 'signup' ? 'Create your account' : 'Sign in'), [mode]);
 
@@ -28,20 +30,31 @@ export default function AuthModal({ open, mode, onClose, onSignIn }) {
 
     setBusy(true);
     try {
-      // Local-only auth (no backend): accept any credentials.
-      // If you have a backend endpoint, we can swap this to a real API call.
-      await new Promise((r) => setTimeout(r, 450));
+      // Local auth demo: store accounts in localStorage.
+      // If a Pathway/real auth API is added later, swap these calls for real endpoints.
+      await new Promise((r) => setTimeout(r, 250));
+
+      const account =
+        mode === 'signup'
+          ? await registerLocalAccount({ email: trimmedEmail, password })
+          : await signInLocalAccount({ email: trimmedEmail, password, provisionIfMissing: true });
 
       const user = {
-        email: trimmedEmail,
-        name: trimmedEmail.split('@')[0] || 'User',
+        id: account.id,
+        email: account.email,
+        name: account.name,
         remember,
         signedInAt: new Date().toISOString(),
       };
+
       onSignIn(user);
       onClose();
-    } catch {
-      setError('Sign in failed. Try again.');
+    } catch (e) {
+      if (e instanceof AuthError) {
+        setError(e.message);
+      } else {
+        setError(mode === 'signup' ? 'Create account failed. Try again.' : 'Sign in failed. Try again.');
+      }
     } finally {
       setBusy(false);
     }
@@ -123,7 +136,7 @@ export default function AuthModal({ open, mode, onClose, onSignIn }) {
             </button>
 
             <p className="text-xs text-slate-400">
-              This demo sign-in is local-only (no backend). Tell me your auth API and I’ll connect it.
+              Accounts are stored locally in this browser (no backend auth wired yet).
             </p>
           </form>
         </div>
