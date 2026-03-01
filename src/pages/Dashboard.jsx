@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import {
   Activity,
   AlertTriangle,
@@ -21,6 +22,29 @@ function typeIcon(type) {
   return type === 'Air' ? Plane : Truck;
 }
 
+function vehicleCoords(vehicle) {
+  const raw = vehicle?.raw ?? {};
+  const lat = typeof raw.lat === 'number' ? raw.lat : typeof vehicle?.lat === 'number' ? vehicle.lat : null;
+  const lon = typeof raw.lon === 'number' ? raw.lon : typeof vehicle?.lon === 'number' ? vehicle.lon : null;
+  if (lat == null || lon == null) return null;
+  return [lat, lon];
+}
+
+function FitBounds({ points }) {
+  const map = useMap();
+
+  React.useEffect(() => {
+    if (!Array.isArray(points) || points.length === 0) return;
+    try {
+      map.fitBounds(points, { padding: [24, 24], maxZoom: 12 });
+    } catch {
+      // ignore fit errors
+    }
+  }, [map, points]);
+
+  return null;
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
 
@@ -36,6 +60,18 @@ export default function DashboardPage() {
     if (liveAlerts.length) return liveAlerts.length;
     return fleetData.filter((v) => v.anomaly).length;
   }, [fleetData, liveAlerts]);
+
+  const mapVehicles = React.useMemo(() => {
+    return fleetData
+      .map((v) => {
+        const coords = vehicleCoords(v);
+        if (!coords) return null;
+        return { vehicle: v, coords };
+      })
+      .filter(Boolean);
+  }, [fleetData]);
+
+  const mapPoints = React.useMemo(() => mapVehicles.map((x) => x.coords), [mapVehicles]);
 
   const [messages, setMessages] = React.useState(() => [
     {
@@ -234,18 +270,41 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between border-b border-slate-800/70 px-5 py-4">
             <div>
               <div className="font-semibold text-slate-50">Map</div>
-              <div className="text-sm text-slate-400">Geospatial placeholder</div>
+              <div className="text-sm text-slate-400">Live vehicle positions</div>
             </div>
           </div>
 
-          <div className="relative p-5">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(16,185,129,0.18),transparent_50%),radial-gradient(circle_at_80%_20%,rgba(56,189,248,0.14),transparent_55%),radial-gradient(circle_at_60%_110%,rgba(99,102,241,0.12),transparent_60%)]" />
-            <div className="relative rounded-2xl overflow-hidden ring-1 ring-slate-800 bg-slate-950/30">
-              <div className="h-72 bg-[linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:28px_28px]" />
-              <div className="absolute inset-0 grid place-items-center text-sm text-slate-400">Live map coming soon</div>
+          <div className="p-5 space-y-4">
+            <div className="rounded-2xl overflow-hidden ring-1 ring-slate-800 bg-slate-950/30">
+              <div className="h-72 w-full">
+                <MapContainer
+                  className="h-full w-full"
+                  center={[20.5937, 78.9629]}
+                  zoom={5}
+                  scrollWheelZoom={false}
+                >
+                  <TileLayer
+                    attribution='&copy; OpenStreetMap contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <FitBounds points={mapPoints} />
 
-              <div className="absolute left-10 top-12 h-3 w-3 rounded-full bg-emerald-600 shadow-[0_0_0_6px_rgba(16,185,129,0.18)]" />
-              <div className="absolute left-10 top-12 w-44 h-[2px] bg-gradient-to-r from-emerald-600/70 to-transparent rotate-12 origin-left" />
+                  {mapVehicles.map(({ vehicle, coords }) => (
+                    <Marker
+                      key={vehicle.id}
+                      position={coords}
+                      eventHandlers={{
+                        click: () => setSelectedId(vehicle.id),
+                      }}
+                    >
+                      <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+                        <div className="font-semibold">{vehicle.id}</div>
+                        <div>{vehicle.name}</div>
+                      </Tooltip>
+                    </Marker>
+                  ))}
+                </MapContainer>
+              </div>
             </div>
 
             {alertCount ? (
